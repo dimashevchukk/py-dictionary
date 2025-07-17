@@ -3,6 +3,7 @@ from typing import Any, Iterator, Hashable
 
 
 class Bucket(Enum):
+    DELETED = object()
     HASH = 0
     KEY = 1
     VALUE = 2
@@ -66,7 +67,7 @@ class Dictionary:
             probe_index = (index + i) % self._capacity
             bucket = self._hash_map[probe_index]
 
-            if bucket is None:
+            if bucket is None or bucket is Bucket.DELETED.value:
                 self._hash_map[probe_index] = [key_hash, key, value]
                 self._size += 1
                 break
@@ -83,7 +84,7 @@ class Dictionary:
         self._hash_map = [None] * self._capacity
 
         for bucket in old_hash_map:
-            if bucket is not None:
+            if bucket is not None and bucket is not Bucket.DELETED.value:
                 self._insert_item(
                     bucket[Bucket.KEY.value],
                     bucket[Bucket.VALUE.value]
@@ -110,6 +111,8 @@ class Dictionary:
 
             if bucket is None:
                 raise KeyError(key)
+            elif bucket is Bucket.DELETED.value:
+                continue
             elif bucket[Bucket.KEY.value] == key:
                 return bucket[Bucket.VALUE.value]
 
@@ -125,7 +128,7 @@ class Dictionary:
             if bucket is None:
                 break
             if bucket[Bucket.KEY.value] == key:
-                self._hash_map[probe_index] = None
+                self._hash_map[probe_index] = Bucket.DELETED.value
                 self._size -= 1
 
                 if self._size <= self._capacity // 4 and self._capacity > 8:
@@ -140,14 +143,14 @@ class Dictionary:
 
     def __iter__(self) -> Iterator:
         return (
-            bucket[Bucket.KEY.value] for bucket
-            in self._hash_map if bucket is not None
+            bucket[Bucket.KEY.value] for bucket in self._hash_map if
+            bucket is not None and bucket is not Bucket.DELETED.value
         )
 
     def __repr__(self) -> str:
         items = []
         for bucket in self._hash_map:
-            if bucket is not None:
+            if bucket is not None and bucket is not Bucket.DELETED.value:
                 items.append(
                     f"{bucket[Bucket.KEY.value]}: {bucket[Bucket.VALUE.value]}"
                 )
